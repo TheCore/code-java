@@ -1,18 +1,20 @@
 package sin.code.java.polling;
 
-import org.awaitility.Awaitility;
-import org.awaitility.core.ConditionTimeoutException;
-import org.hamcrest.Matcher;
-
 import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.Collections;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.concurrent.Callable;
-import java.util.logging.Logger;
+import org.awaitility.Awaitility;
+import org.awaitility.core.ConditionTimeoutException;
+import org.hamcrest.Matcher;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class Poll<T> {
+    public static final Logger log = LoggerFactory.getLogger(Poll.class);
+
     private List<Callable<T>> checkers;
     private List<Matcher<T>> conditions;
     private List<String> failMessages;
@@ -20,18 +22,17 @@ public class Poll<T> {
     private Duration timeout;
     private Duration interval;
 
-    private Logger log = Logger.getGlobal();
-
-    private Poll() {}
+    private Poll() {
+    }
 
     public List<T> start() {
         assert checkers.size() == conditions.size();
         log.info("Poll.start()");
         switch (type) {
-        case SEQUENTIAL:
-            return pollSequentially();
-        case PARALLEL:
-            return pollInParallel();
+            case SEQUENTIAL:
+                return pollSequentially();
+            case PARALLEL:
+                return pollInParallel();
         }
         return Collections.emptyList();
     }
@@ -39,9 +40,9 @@ public class Poll<T> {
     private List<T> pollInParallel() {
         // TODO
         return Collections.emptyList();
-	}
+    }
 
-	private List<T> pollSequentially() {
+    private List<T> pollSequentially() {
         log.info("Poll.pollSequentially()");
         List<T> pollingResults = new LinkedList<>();
         Duration timeLeft = timeout;
@@ -50,22 +51,20 @@ public class Poll<T> {
             LocalDateTime awaitStop = awaitStart;
             T result = null;
             try {
-                result = Awaitility.await()
-                   .atMost(timeLeft)
-                   .pollInterval(interval)
-                   .until(checkers.get(i), conditions.get(i));
+                result = Awaitility.await().atMost(timeLeft).pollInterval(interval)
+                        .until(checkers.get(i), conditions.get(i));
                 awaitStop = LocalDateTime.now();
                 log.info("Poll.pollSequentially() result: " + result.toString());
-            } catch(ConditionTimeoutException e) {
+            } catch (ConditionTimeoutException e) {
                 log.info(failMessages.get(i));
             }
             pollingResults.add(result);
             timeLeft = timeLeft.minus(Duration.between(awaitStart, awaitStop));
         }
         return pollingResults;
-	}
+    }
 
-	public static class PollBuilder<U> {
+    public static class PollBuilder<U> {
         private List<Callable<U>> checkers;
         private List<Matcher<U>> conditions;
         private List<String> failMessages;
@@ -84,10 +83,7 @@ public class Poll<T> {
             return new PollBuilder<>(pollingType);
         }
 
-        public PollBuilder<U> until(
-                Callable<U> check,
-                Matcher<U> matches,
-                String failMsg) {
+        public PollBuilder<U> until(Callable<U> check, Matcher<U> matches, String failMsg) {
             this.checkers.add(check);
             this.conditions.add(matches);
             this.failMessages.add(failMsg);
